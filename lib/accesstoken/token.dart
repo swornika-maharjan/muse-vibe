@@ -1,5 +1,5 @@
-// spotify_service.dart
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 Future<String> getSpotifyAccessToken() async {
@@ -22,5 +22,18 @@ Future<String> getSpotifyAccessToken() async {
     return data['access_token'];
   } else {
     throw Exception('Failed to get access token');
+  }
+}
+
+void main() async {
+  try {
+    String accessToken = await getSpotifyAccessToken();
+    if (kDebugMode) {
+      print('Access Token: $accessToken');
+    }
+  } catch (e) {
+    if (kDebugMode) {
+      print('Error: $e');
+    }
   }
 }

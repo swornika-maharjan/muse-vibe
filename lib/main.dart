@@ -1,8 +1,11 @@
 // main.dart
+
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:music_player/accesstoken/token.dart'; // Import the new file
+
+import 'package:music_player/playerpage/playback_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -34,7 +37,6 @@ class LoginSignupPage extends StatefulWidget {
 class LoginSignupPageState extends State<LoginSignupPage> {
   bool isLogin = true; // Toggle between login and signup
   Map<String, String> registeredUsers = {}; // Store signed-up users
-
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
@@ -81,7 +83,6 @@ class LoginSignupPageState extends State<LoginSignupPage> {
                     // Login logic
                     if (registeredUsers.containsKey(emailController.text) &&
                         registeredUsers[emailController.text] == passwordController.text) {
-                      // Successful login
                       Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(builder: (context) => const MusicListPage()),
@@ -142,6 +143,12 @@ class MusicListPage extends StatefulWidget {
 
 class MusicListPageState extends State<MusicListPage> {
   List<dynamic> musicList = [];
+  bool isPlaying = false;
+  String currentTrack = "";
+  String currentCover = "";
+  double value = 0;
+  Duration? duration;
+  final player = AudioPlayer();
 
   @override
   void initState() {
@@ -149,42 +156,136 @@ class MusicListPageState extends State<MusicListPage> {
     fetchMusic();
   }
 
-  Future<void> fetchMusic() async {
-    final accessToken = await getSpotifyAccessToken(); // Call the function from the service
-    final response = await http.get(
-      Uri.parse('https://api.spotify.com/v1/search?q=beatles&type=track'),
+  Future<String> getSpotifyAccessToken() async {
+    const clientId = '4295237b56614d09b710a17c4b490da5';
+    const clientSecret = 'd23b71a06f3c4eba91aa97e87f517ae1';
+
+    final response = await http.post(
+      Uri.parse('https://accounts.spotify.com/api/token'),
       headers: {
-        'Authorization': 'Bearer $accessToken', // Use the retrieved access token
+        'Authorization': 'Basic ${base64Encode(
+            utf8.encode('$clientId:$clientSecret'))}',
+      },
+      body: {
+        'grant_type': 'client_credentials',
       },
     );
 
     if (response.statusCode == 200) {
-      setState(() {
-        musicList = jsonDecode(response.body)['tracks']['items'];
-      });
+      final data = jsonDecode(response.body);
+      return data['access_token'];
     } else {
+      throw Exception('Failed to get access token');
+    }
+  }
+
+  Future<void> fetchMusic() async {
+    try {
+      final response = await http.get(
+        Uri.parse('https://api.spotify.com/v1/search?q=beatles&type=track'),
+        headers: {
+          'Authorization': 'Bearer  BQD14_WpNBdKQQrxoXwin2xl008MIoMmlKtKL60pUWRhCX9cwN591GjSrnJGLUx2GckaYbcpWkM3_xlnlpne8t9evk31bwG98uzYpaFEpWmCUtS-Lw8',
+          // Use the actual access token
+        },
+      );
+
+      if (response.statusCode == 200) {
+        if (!mounted) return; // Check if the widget is still mounted
+        setState(() {
+          musicList = jsonDecode(response.body)['tracks']['items'];
+        });
+      } else {
+        if (!mounted) return; // Check if the widget is still mounted
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to load music')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return; // Check if the widget is still mounted
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to load music')),
+        const SnackBar(content: Text('Error fetching music')),
       );
     }
+  }
+
+  // Function to play selected song
+  void playMusic(String trackUrl, String coverUrl) async {
+    await player.setSourceUrl(trackUrl);
+    await player.resume();
+    duration = await player.getDuration();
+    setState(() {
+      isPlaying = true;
+      currentTrack = trackUrl;
+      currentCover = coverUrl;
+    });
+
+    player.onPositionChanged.listen((position) {
+      setState(() {
+        value = position.inSeconds.toDouble();
+      });
+    });
+  }
+
+  // Function to stop the song
+  void stopMusic() async {
+    await player.pause();
+    setState(() {
+      isPlaying = false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Music List'),
+        title: const Text('For You'),
+        backgroundColor: Colors.blueAccent,
       ),
       body: musicList.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : ListView.builder(
         itemCount: musicList.length,
         itemBuilder: (context, index) {
+          // Extract track information
+          final track = musicList[index];
+          final trackUrl = track['preview_url']; // Preview URL for playback
+          final coverUrl = track['album']['images'][0]['url']; // Cover URL
+
           return ListTile(
-            title: Text(musicList[index]['name']),
-            subtitle: Text(musicList[index]['artists'][0]['name']),
+            leading: coverUrl != null
+                ? Image.network(
+              coverUrl, // Use the actual cover URL from API
+              width: 50,
+              height: 50,
+              fit: BoxFit.cover,
+            )
+                : Image.asset(
+              'assets/cover1.jpg', // Fallback to default image
+              width: 50,
+              height: 50,
+              fit: BoxFit.cover,
+            ),
+            title: Text(track['name']),
+            subtitle: Text(track['artists'][0]['name']),
             onTap: () {
-              // Implement music playback logic here
+              if (trackUrl != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => PlaybackPage(
+                      trackUrl: trackUrl,
+                      coverUrl: coverUrl,
+                      trackName: track['name'],
+                      artistName: track['artists'][0]['name'],
+                    ),
+                  ),
+                ).then((_) {
+                  // Callback to handle when returning from PlaybackPage
+                  if (isPlaying) {
+                    stopMusic(); // Stop playback if user returns
+                  }
+                });
+              }
             },
           );
         },
