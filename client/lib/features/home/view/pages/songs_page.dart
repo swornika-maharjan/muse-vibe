@@ -6,13 +6,18 @@ import 'package:client/features/home/viewmodel/home_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class SongsPage extends ConsumerWidget {
+class SongsPage extends ConsumerStatefulWidget {
   const SongsPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final recentlyPlayedSongs =
-        ref.watch(homeViewModelProvider.notifier).getRecentlyPlayedSongs();
+  ConsumerState<SongsPage> createState() => _SongsPageState();
+}
+
+class _SongsPageState extends ConsumerState<SongsPage> {
+  String _searchQuery = '';
+
+  @override
+  Widget build(BuildContext context) {
     final currentSong = ref.watch(currentSongNotifierProvider);
 
     return AnimatedContainer(
@@ -33,156 +38,176 @@ class SongsPage extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.only(left: 16.0, right: 16, bottom: 36),
-            child: SizedBox(
-              height: 280,
-              child: GridView.builder(
-                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: 200,
-                  childAspectRatio: 3,
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 8,
+          // Search Bar in AppBar
+          AppBar(
+            backgroundColor: Colors.black,
+            elevation: 0,
+            title: Container(
+              decoration: BoxDecoration(
+                color: Colors.black12,
+                borderRadius: BorderRadius.circular(30.0), // Circular border
+              ),
+              child: TextField(
+                decoration: const InputDecoration(
+                  hintText: 'Search',
+                  border: InputBorder.none,
+                  prefixIcon: Icon(Icons.search, color: Colors.grey),
+                  contentPadding: EdgeInsets.symmetric(vertical: 15.0),
                 ),
-                itemCount: recentlyPlayedSongs.length,
-                itemBuilder: (context, index) {
-                  final song = recentlyPlayedSongs[index];
-                  return GestureDetector(
-                    onTap: () {
-                      ref
-                          .read(currentSongNotifierProvider.notifier)
-                          .updateSong(song);
-                    },
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Pallete.borderColor,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      padding: const EdgeInsets.only(right: 20),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 56,
-                            decoration: BoxDecoration(
-                              image: DecorationImage(
-                                image: NetworkImage(
-                                  song.thumbnail_url,
-                                ),
-                                fit: BoxFit.cover,
-                              ),
-                              borderRadius: const BorderRadius.only(
-                                topLeft: Radius.circular(4),
-                                bottomLeft: Radius.circular(4),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Flexible(
-                            child: Text(
-                              song.song_name,
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              maxLines: 1,
-                            ),
-                          )
-                        ],
-                      ),
-                    ),
-                  );
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value.toLowerCase();
+                  });
                 },
               ),
             ),
           ),
-          const Padding(
-            padding: EdgeInsets.all(8.0),
-            child: Text(
-              'Latest today',
-              style: TextStyle(
-                fontSize: 23,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          ref.watch(getAllSongsProvider).when(
-                data: (songs) {
-                  return SizedBox(
-                    height: 260,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: songs.length,
-                      itemBuilder: (context, index) {
-                        final song = songs[index];
 
-                        return GestureDetector(
-                          onTap: () {
-                            ref
-                                .read(currentSongNotifierProvider.notifier)
-                                .updateSong(song);
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.only(left: 16.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Container(
-                                  width: 180,
-                                  height: 180,
-                                  decoration: BoxDecoration(
-                                    image: DecorationImage(
-                                      image: NetworkImage(
-                                        song.thumbnail_url,
+          // All and Recommended Tabs
+          DefaultTabController(
+            length: 2,
+            child: Expanded(
+              child: Column(
+                children: [
+                  const TabBar(
+                    labelColor: Colors.indigo,
+                    unselectedLabelColor: Colors.grey,
+                    indicatorColor: Colors.indigo,
+                    tabs: [
+                      Tab(text: 'All'),
+                      Tab(text: 'Recommended'),
+                    ],
+                  ),
+                  Expanded(
+                    child: TabBarView(
+                      children: [
+                        // All Songs Vertical List
+                        ref.watch(getAllSongsProvider).when(
+                              data: (songs) {
+                                final filteredSongs = songs
+                                    .where((song) =>
+                                        song.song_name
+                                            .toLowerCase()
+                                            .contains(_searchQuery) ||
+                                        song.artist
+                                            .toLowerCase()
+                                            .contains(_searchQuery))
+                                    .toList();
+
+                                return ListView.builder(
+                                  padding: const EdgeInsets.all(8.0),
+                                  itemCount: filteredSongs.length,
+                                  itemBuilder: (context, index) {
+                                    final song = filteredSongs[index];
+                                    return GestureDetector(
+                                      onTap: () {
+                                        ref
+                                            .read(currentSongNotifierProvider
+                                                .notifier)
+                                            .updateSong(song);
+                                      },
+                                      child: Card(
+                                        margin:
+                                            const EdgeInsets.only(bottom: 8.0),
+                                        child: ListTile(
+                                          leading: Image.network(
+                                            song.thumbnail_url,
+                                            width: 56,
+                                            height: 56,
+                                            fit: BoxFit.cover,
+                                          ),
+                                          title: Text(
+                                            song.song_name,
+                                            style: const TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          subtitle: Text(
+                                            song.artist,
+                                            style: const TextStyle(
+                                              color: Pallete.subtitleText,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ),
                                       ),
-                                      fit: BoxFit.cover,
-                                    ),
-                                    borderRadius: BorderRadius.circular(7),
-                                  ),
-                                ),
-                                const SizedBox(height: 5),
-                                SizedBox(
-                                  width: 180,
-                                  child: Text(
-                                    song.song_name,
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w700,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    maxLines: 1,
-                                  ),
-                                ),
-                                SizedBox(
-                                  width: 180,
-                                  child: Text(
-                                    song.artist,
-                                    style: const TextStyle(
-                                      color: Pallete.subtitleText,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    maxLines: 1,
-                                  ),
-                                ),
-                              ],
+                                    );
+                                  },
+                                );
+                              },
+                              error: (error, st) => Center(
+                                child: Text(error.toString()),
+                              ),
+                              loading: () => const Loader(),
                             ),
-                          ),
-                        );
-                      },
+                        // Recommended Songs Vertical List
+                        ref.watch(getRecommendedSongsProvider).when(
+                              data: (songs) {
+                                final filteredSongs = songs
+                                    .where((song) =>
+                                        song.song_name
+                                            .toLowerCase()
+                                            .contains(_searchQuery) ||
+                                        song.artist
+                                            .toLowerCase()
+                                            .contains(_searchQuery))
+                                    .toList();
+
+                                return ListView.builder(
+                                  padding: const EdgeInsets.all(8.0),
+                                  itemCount: filteredSongs.length,
+                                  itemBuilder: (context, index) {
+                                    final song = filteredSongs[index];
+                                    return GestureDetector(
+                                      onTap: () {
+                                        ref
+                                            .read(currentSongNotifierProvider
+                                                .notifier)
+                                            .updateSong(song);
+                                      },
+                                      child: Card(
+                                        margin:
+                                            const EdgeInsets.only(bottom: 8.0),
+                                        child: ListTile(
+                                          leading: Image.network(
+                                            song.thumbnail_url,
+                                            width: 56,
+                                            height: 56,
+                                            fit: BoxFit.cover,
+                                          ),
+                                          title: Text(
+                                            song.song_name,
+                                            style: const TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          subtitle: Text(
+                                            song.artist,
+                                            style: const TextStyle(
+                                              color: Pallete.subtitleText,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                );
+                              },
+                              error: (error, st) => Center(
+                                child: Text(error.toString()),
+                              ),
+                              loading: () => const Loader(),
+                            ),
+                      ],
                     ),
-                  );
-                },
-                error: (error, st) {
-                  return Center(
-                    child: Text(
-                      error.toString(),
-                    ),
-                  );
-                },
-                loading: () => const Loader(),
+                  ),
+                ],
               ),
+            ),
+          ),
         ],
       ),
     );

@@ -6,6 +6,8 @@ class CustomField extends StatelessWidget {
   final bool isObscureText;
   final bool readOnly;
   final VoidCallback? onTap;
+  final String? Function(String?)? validator; // Optional custom validator
+
   const CustomField({
     super.key,
     required this.hintText,
@@ -13,6 +15,7 @@ class CustomField extends StatelessWidget {
     this.isObscureText = false,
     this.readOnly = false,
     this.onTap,
+    this.validator,
   });
 
   @override
@@ -25,10 +28,17 @@ class CustomField extends StatelessWidget {
         hintText: hintText,
       ),
       validator: (val) {
-        if (val!.trim().isEmpty) {
+        // Default validation for empty fields
+        if (val == null || val.trim().isEmpty) {
           return "$hintText is missing!";
         }
-        return null;
+
+        // Apply custom validation if provided
+        if (validator != null) {
+          return validator!(val);
+        }
+
+        return null; // Passes validation if no issues
       },
       obscureText: isObscureText,
     );

@@ -97,4 +97,8 @@ class AuthViewModel extends _$AuthViewModel {
     _currentUserNotifier.addUser(user);
     return state = AsyncValue.data(user);
   }
+
+  void resetState() {
+    state = null; // Reset the state
+  }
 }

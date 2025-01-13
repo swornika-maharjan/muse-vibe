@@ -1,5 +1,6 @@
 from sqlalchemy import TEXT, VARCHAR, Column
 from models.base import Base
+from sqlalchemy.orm import relationship
 
 
 class Song(Base):
@@ -11,3 +12,4 @@ class Song(Base):
     artist = Column(TEXT)
     song_name = Column(VARCHAR(100))
     hex_code = Column(VARCHAR(6))
+    genres = relationship('Genre', secondary='song_genre_association', back_populates='songs')

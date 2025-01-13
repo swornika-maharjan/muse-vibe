@@ -11,3 +11,4 @@ class User(Base):
     password = Column(LargeBinary)
 
     favorites = relationship('Favorite', back_populates='user')
+    liked_genres = relationship('Genre', secondary='user_genre_association', back_populates='liked_by_users')

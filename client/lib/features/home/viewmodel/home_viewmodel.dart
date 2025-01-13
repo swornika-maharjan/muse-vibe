@@ -26,6 +26,20 @@ Future<List<SongModel>> getAllSongs(GetAllSongsRef ref) async {
 }
 
 @riverpod
+Future<List<SongModel>> getRecommendedSongs(GetRecommendedSongsRef ref) async {
+  final token =
+      ref.watch(currentUserNotifierProvider.select((user) => user!.token));
+  final res = await ref.watch(homeRepositoryProvider).getRecommendedSongs(
+        token: token,
+      );
+
+  return switch (res) {
+    Left(value: final l) => throw l.message,
+    Right(value: final r) => r,
+  };
+}
+
+@riverpod
 Future<List<SongModel>> getFavSongs(GetFavSongsRef ref) async {
   final token =
       ref.watch(currentUserNotifierProvider.select((user) => user!.token));

@@ -7,6 +7,8 @@ import cloudinary
 import cloudinary.uploader
 from models.favourite import Favorite
 from models.song import Song
+from models.genre import Genre
+from models.association import song_genre_association, user_genre_association
 from sqlalchemy.orm import joinedload
 from pydantic_schemas.favourite_song import FavoriteSong
 
@@ -52,6 +54,35 @@ def list_songs(db: Session=Depends(get_db),
     songs = db.query(Song).all()
     return songs
 
+@router.post('/add-genre', status_code=201)
+def add_genre(
+    name: str = Form(...), 
+    song_id: str = Form(None), 
+    db: Session = Depends(get_db)
+):
+    # Check if genre already exists
+    existing_genre = db.query(Genre).filter(Genre.name == name).first()
+    if existing_genre:
+        genre_id = existing_genre.id
+    else:
+        # Create a new genre if it doesn't exist
+        genre_id = str(uuid.uuid4())
+        new_genre = Genre(id=genre_id, name=name)
+        db.add(new_genre)
+        db.commit()
+
+    # Associate genre with a song, if provided
+    if song_id:
+        song = db.query(Song).filter(Song.id == song_id).first()
+        if song:
+            association = song_genre_association.insert().values(song_id=song_id, genre_id=genre_id)
+            db.execute(association)
+            db.commit()
+        else:
+            return {"error": "Song not found."}
+
+    return {"message": "Genre added successfully.", "genre_id": genre_id}
+
 @router.post('/favorite')
 def favorite_song(song: FavoriteSong, 
                   db: Session=Depends(get_db), 
@@ -80,7 +111,66 @@ def list_fav_songs(db: Session=Depends(get_db),
     ).all()
     
     return fav_songs
+
+
+@router.get('/user/genres/check')
+def check_user_genres(db: Session = Depends(get_db), 
+                      auth_details = Depends(auth_middleware)):
+    user_id = auth_details['uid']
     
+    # Check if the user has any associated genres
+    has_genres = db.query(user_genre_association).filter(user_genre_association.c.user_id == user_id).first()
+    
+    if has_genres:
+        return {'has_genres': True}
+    
+    # Fetch all distinct genres from the Genre table
+    all_genres = db.query(Genre).all()
+    distinct_genres = [{'id': genre.id, 'name': genre.name} for genre in all_genres]
+
+    return {
+        'has_genres': False,
+        'available_genres': distinct_genres
+    }
+
+
+@router.post('/user/genres/add', status_code=201)
+def add_user_genres(genres: list[str], 
+                    db: Session = Depends(get_db), 
+                    auth_details = Depends(auth_middleware)):
+    user_id = auth_details['uid']
+    
+    added_genres = []
+    failed_genres = []
+
+    for genre_name in genres:
+        # Check if the genre exists
+        genre = db.query(Genre).filter(Genre.name == genre_name).first()
+        if not genre:
+            failed_genres.append(genre_name)
+            continue
+        
+        # Check if the association already exists
+        existing_association = db.query(user_genre_association).filter(
+            user_genre_association.c.user_id == user_id,
+            user_genre_association.c.genre_id == genre.id
+        ).first()
+        
+        if existing_association:
+            continue  # Skip if the association already exists
+        
+        # Add the new association
+        association = user_genre_association.insert().values(user_id=user_id, genre_id=genre.id)
+        db.execute(association)
+        db.commit()
+        added_genres.append(genre_name)
+
+    return {
+        "message": "User-genre associations processed.",
+        "added_genres": added_genres,
+        "failed_genres": failed_genres
+    }
+
 
 @router.get('/recommend')
 def recommendation_songs(db: Session = Depends(get_db), 

@@ -1,6 +1,7 @@
 import 'package:client/core/theme/app_pallete.dart';
 import 'package:client/features/home/view/pages/library_page.dart';
 import 'package:client/features/home/view/pages/songs_page.dart';
+import 'package:client/features/home/view/pages/upload_song_page.dart';
 import 'package:client/features/home/view/widgets/music_slab.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,6 +21,21 @@ class _HomePageState extends ConsumerState<HomePage> {
     LibraryPage(),
   ];
 
+  void _onItemTapped(int index) {
+    if (index == 1) {
+      // Navigate to upload page when middle icon is tapped
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => const UploadSongPage(),
+        ),
+      );
+    } else {
+      setState(() {
+        selectedIndex = index > 1 ? index - 1 : index;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -33,12 +49,8 @@ class _HomePageState extends ConsumerState<HomePage> {
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: selectedIndex,
-        onTap: (value) {
-          setState(() {
-            selectedIndex = value;
-          });
-        },
+        currentIndex: selectedIndex < 1 ? selectedIndex : 1,
+        onTap: _onItemTapped,
         items: [
           BottomNavigationBarItem(
             icon: Image.asset(
@@ -50,6 +62,21 @@ class _HomePageState extends ConsumerState<HomePage> {
                   : Pallete.inactiveBottomBarItemColor,
             ),
             label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Container(
+              padding: const EdgeInsets.all(8.0),
+              decoration: const BoxDecoration(
+                color: Pallete.whiteColor,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.add,
+                color: Pallete.backgroundColor,
+                size: 28,
+              ),
+            ),
+            label: 'Upload',
           ),
           BottomNavigationBarItem(
             icon: Image.asset(

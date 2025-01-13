@@ -10,11 +10,16 @@ class CurrentSongNotifier extends _$CurrentSongNotifier {
   late HomeLocalRepository _homeLocalRepository;
   AudioPlayer? audioPlayer;
   bool isPlaying = false;
+  List<SongModel> _currentPlaylist = [];
 
   @override
   SongModel? build() {
     _homeLocalRepository = ref.watch(homeLocalRepositoryProvider);
     return null;
+  }
+
+  void updatePlaylist(List<SongModel> playlist) {
+    _currentPlaylist = playlist;
   }
 
   void updateSong(SongModel song) async {
@@ -34,17 +39,22 @@ class CurrentSongNotifier extends _$CurrentSongNotifier {
 
     audioPlayer!.playerStateStream.listen((state) {
       if (state.processingState == ProcessingState.completed) {
-        audioPlayer!.seek(Duration.zero);
-        audioPlayer!.pause();
-        isPlaying = false;
-
-        this.state = this.state?.copyWith(hex_code: this.state?.hex_code);
+        _playNextSongAutomatically();
       }
     });
+
     _homeLocalRepository.uploadLocalSong(song);
     audioPlayer!.play();
     isPlaying = true;
     state = song;
+  }
+
+  void _playNextSongAutomatically() {
+    final currentIndex =
+        _currentPlaylist.indexWhere((song) => song.id == state?.id);
+    if (currentIndex >= 0 && currentIndex < _currentPlaylist.length - 1) {
+      playNext(_currentPlaylist[currentIndex + 1]);
+    }
   }
 
   void playPause() {
@@ -63,5 +73,47 @@ class CurrentSongNotifier extends _$CurrentSongNotifier {
         milliseconds: (val * audioPlayer!.duration!.inMilliseconds).toInt(),
       ),
     );
+  }
+
+  void playNext(SongModel nextSong) async {
+    await audioPlayer?.stop();
+    audioPlayer = AudioPlayer();
+
+    final audioSource = AudioSource.uri(
+      Uri.parse(nextSong.song_url),
+      tag: MediaItem(
+        id: nextSong.id,
+        title: nextSong.song_name,
+        artist: nextSong.artist,
+        artUri: Uri.parse(nextSong.thumbnail_url),
+      ),
+    );
+
+    await audioPlayer!.setAudioSource(audioSource);
+    audioPlayer!.play();
+    isPlaying = true;
+    state = nextSong;
+    _homeLocalRepository.uploadLocalSong(nextSong);
+  }
+
+  void playPrevious(SongModel previousSong) async {
+    await audioPlayer?.stop();
+    audioPlayer = AudioPlayer();
+
+    final audioSource = AudioSource.uri(
+      Uri.parse(previousSong.song_url),
+      tag: MediaItem(
+        id: previousSong.id,
+        title: previousSong.song_name,
+        artist: previousSong.artist,
+        artUri: Uri.parse(previousSong.thumbnail_url),
+      ),
+    );
+
+    await audioPlayer!.setAudioSource(audioSource);
+    audioPlayer!.play();
+    isPlaying = true;
+    state = previousSong;
+    _homeLocalRepository.uploadLocalSong(previousSong);
   }
 }
