@@ -192,6 +192,8 @@ def recommendation_songs(db: Session = Depends(get_db),
     for entry in data:
         interaction_matrix[entry['user_id']][entry['song_id']] = 1
         # if user_id not in interaction_matrix:
+        if user_id not in interaction_matrix:
+            interaction_matrix[user_id] = {song: 0 for song in songs}
         #     return 0
 
     # Compute cosine similarity between users manually
@@ -221,9 +223,20 @@ def recommendation_songs(db: Session = Depends(get_db),
     user_songs = [song for song, liked in interaction_matrix[user_id].items() if liked == 1]
     recommended_song_ids.difference_update(user_songs)
 
-    # If no recommendations found, return a helpful message
+    # Check if collaborative recommendations are less than 2
+    if len(recommended_song_ids) < 2:
+        # Fetch additional recommendations from content-based filtering
+        content_based = content_based_recommendations(user_id, db)
+        
+        # Convert content-based results to a set of song IDs
+        content_based_song_ids = {song['id'] for song in content_based}
+
+        # Merge collaborative and content-based recommendations
+        recommended_song_ids.update(content_based_song_ids)
+
+    # If no recommendations, return empty list
     if not recommended_song_ids:
-        return {'message': 'No recommendations available. Try liking more songs!'}
+        return []
 
     # Fetch recommended songs from the database
     recommended_songs = db.query(Song).filter(Song.id.in_(list(recommended_song_ids))).all()
@@ -239,4 +252,74 @@ def recommendation_songs(db: Session = Depends(get_db),
     } for song in recommended_songs]
 
     return recommended_songs_dict
+
+def content_based_recommendations(user_id: str, db: Session):
+    # Fetch the genres the user likes
+    liked_genres = (
+        db.query(Genre.id)
+        .join(user_genre_association, user_genre_association.c.genre_id == Genre.id)
+        .filter(user_genre_association.c.user_id == user_id)
+        .all()
+    )
+    liked_genre_ids = [genre.id for genre in liked_genres]
+
+    if not liked_genre_ids:
+        return []  # If no genres are associated, return an empty list
+
+    # Fetch songs in the liked genres but exclude already liked songs
+    user_liked_songs = (
+        db.query(Favorite.song_id)
+        .filter(Favorite.user_id == user_id)
+        .all()
+    )
+    liked_song_ids = [fav.song_id for fav in user_liked_songs]
+
+    recommended_songs = (
+        db.query(Song)
+        .join(song_genre_association, song_genre_association.c.song_id == Song.id)
+        .filter(song_genre_association.c.genre_id.in_(liked_genre_ids))
+        .filter(Song.id.notin_(liked_song_ids))
+        .all()
+    )
+
+    # Format the response as a list of dictionaries
+    recommended_songs_dict = [
+        {
+            'id': song.id,
+            'song_url': song.song_url,
+            'thumbnail_url': song.thumbnail_url,
+            'artist': song.artist,
+            'song_name': song.song_name,
+            'hex_code': song.hex_code
+        }
+        for song in recommended_songs
+    ]
+
+    return recommended_songs_dict
+
+# def content_based_recommendations(user_id, db):
+#     # Fetch the IDs of songs the user already likes
+#     user_songs = db.query(Favorite.song_id).filter(Favorite.user_id == user_id).all()
+#     user_songs = [song[0] for song in user_songs]  # Extract IDs from the query result
+
+#     # Fetch the genres of those songs
+#     user_songs_genres = db.query(Song.genre).filter(Song.id.in_(user_songs)).distinct().all()
+#     user_genres = [genre[0] for genre in user_songs_genres]  # Extract genres from the query result
+
+#     # Find other songs in the same genres
+#     recommended_songs = db.query(Song).filter(
+#         Song.genre.in_(user_genres),
+#         ~Song.id.in_(user_songs)  # Exclude songs the user already likes
+#     ).all()
+
+#     # Format and return recommendations
+#     return [{
+#         'id': song.id,
+#         'song_url': song.song_url,
+#         'thumbnail_url': song.thumbnail_url,
+#         'artist': song.artist,
+#         'song_name': song.song_name,
+#         'hex_code': song.hex_code
+#     } for song in recommended_songs]
+
 

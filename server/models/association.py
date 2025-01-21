@@ -16,3 +16,7 @@ user_genre_association = Table(
     Column('user_id', TEXT, ForeignKey('users.id'), primary_key=True),
     Column('genre_id', TEXT, ForeignKey('genres.id'), primary_key=True)
 )
+
+
+
+
