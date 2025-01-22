@@ -116,4 +116,13 @@ class CurrentSongNotifier extends _$CurrentSongNotifier {
     state = previousSong;
     _homeLocalRepository.uploadLocalSong(previousSong);
   }
+
+  Future<void> stop() async {
+    await audioPlayer?.stop(); // Stops the music playback
+    isPlaying = false;
+  }
+
+  void clearCurrentSong() {
+    state = null; // Resets the current song
+  }
 }

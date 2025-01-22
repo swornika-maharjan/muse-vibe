@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'dart:ui';
-
 import 'package:client/core/providers/current_user_notifier.dart';
 import 'package:client/core/utils.dart';
 import 'package:client/features/home/models/fav_song_model.dart';
@@ -70,6 +69,7 @@ class HomeViewModel extends _$HomeViewModel {
     required File selectedThumbnail,
     required String songName,
     required String artist,
+    List<String>? genres,
     required Color selectedColor,
   }) async {
     state = const AsyncValue.loading();

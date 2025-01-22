@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:client/core/constants/server_constant.dart';
+import 'package:client/core/theme/app_pallete.dart';
 import 'package:client/features/home/view/pages/home_page.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -133,7 +134,8 @@ class UserPreferencesPageState extends State<UserPreferencesPage> {
       ),
       body: isLoading
           ? const Center(
-              child: CircularProgressIndicator()) // Show loader while fetching
+              child: CircularProgressIndicator(),
+            ) // Show loader while fetching
           : genres.isEmpty
               ? const Center(
                   child: Text('No genres available. Please try again later.'),
@@ -162,8 +164,8 @@ class UserPreferencesPageState extends State<UserPreferencesPage> {
                                     }
                                   });
                                 },
-                                selectedColor: Colors.blue,
-                                backgroundColor: Colors.grey[200],
+                                selectedColor: Pallete.gradient2,
+                                backgroundColor: Colors.indigo[200],
                                 labelStyle: TextStyle(
                                   color:
                                       isSelected ? Colors.white : Colors.black,
@@ -174,13 +176,79 @@ class UserPreferencesPageState extends State<UserPreferencesPage> {
                         ),
                       ),
                       const SizedBox(height: 16.0),
-                      ElevatedButton(
-                        onPressed: selectedGenres.isEmpty
-                            ? null
-                            : () {
-                                submitGenres();
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          // Skip Button
+                          Expanded(
+                            child: InkWell(
+                              onTap: () {
+                                Navigator.pushAndRemoveUntil(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => HomePage(),
+                                  ),
+                                  (_) => false,
+                                );
                               },
-                        child: const Text('Submit'),
+                              child: Container(
+                                height: 50,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Pallete.gradient1,
+                                      Pallete.gradient2,
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(8.0),
+                                ),
+                                child: const Text(
+                                  'Skip',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16.0),
+                          // Submit Button
+                          Expanded(
+                            child: InkWell(
+                              onTap: selectedGenres.isEmpty
+                                  ? null
+                                  : () {
+                                      submitGenres();
+                                    },
+                              child: Container(
+                                height: 50,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: selectedGenres.isEmpty
+                                        ? [Colors.indigo, Colors.indigo]
+                                        : [
+                                            Pallete.gradient1,
+                                            Pallete.gradient2,
+                                          ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(8.0),
+                                ),
+                                child: const Text(
+                                  'Submit',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),

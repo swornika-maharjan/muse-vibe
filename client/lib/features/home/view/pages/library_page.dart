@@ -1,6 +1,7 @@
 import 'package:client/core/providers/current_song_notifier.dart';
 import 'package:client/core/theme/app_pallete.dart';
 import 'package:client/core/widgets/loader.dart';
+import 'package:client/features/auth/view/pages/signup_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:client/features/home/viewmodel/home_viewmodel.dart';
@@ -15,7 +16,6 @@ class LibraryPage extends ConsumerWidget {
 
     return Scaffold(
       body: SafeArea(
-        // Added SafeArea
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -149,6 +149,38 @@ class LibraryPage extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Logout'),
+              content: const Text('Are you sure you want to logout?'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop(); // Close the dialog
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => SignupPage(),
+                      ),
+                      (_) => false,
+                    ); // Navigate to signup
+                  },
+                  child: const Text('Yes'),
+                ),
+              ],
+            ),
+          );
+        },
+        backgroundColor: Pallete.borderColor,
+        child: const Icon(Icons.logout),
       ),
     );
   }

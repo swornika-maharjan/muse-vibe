@@ -25,6 +25,8 @@ class _UploadSongPageState extends ConsumerState<UploadSongPage> {
   File? selectedAudio;
   final formKey = GlobalKey<FormState>();
 
+  final List<TextEditingController> genreControllers = [];
+
   void selectAudio() async {
     final pickedAudio = await pickAudio();
     if (pickedAudio != null) {
@@ -43,11 +45,27 @@ class _UploadSongPageState extends ConsumerState<UploadSongPage> {
     }
   }
 
+  void addGenreField() {
+    setState(() {
+      genreControllers.add(TextEditingController());
+    });
+  }
+
+  void removeGenreField(int index) {
+    setState(() {
+      genreControllers[index].dispose();
+      genreControllers.removeAt(index);
+    });
+  }
+
   @override
   void dispose() {
     super.dispose();
     songNameController.dispose();
     artistController.dispose();
+    for (final controller in genreControllers) {
+      controller.dispose();
+    }
   }
 
   @override
@@ -69,6 +87,7 @@ class _UploadSongPageState extends ConsumerState<UploadSongPage> {
                       songName: songNameController.text,
                       artist: artistController.text,
                       selectedColor: selectedColor,
+                      genres: genreControllers.map((c) => c.text).toList(),
                     );
               } else {
                 showSnackBar(context, 'Missing fields!');
@@ -149,6 +168,36 @@ class _UploadSongPageState extends ConsumerState<UploadSongPage> {
                         controller: songNameController,
                       ),
                       const SizedBox(height: 20),
+                      const SizedBox(height: 20),
+                      // Genres Section
+                      Column(
+                        children: [
+                          for (int i = 0; i < genreControllers.length; i++)
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: CustomField(
+                                    hintText: 'Genre',
+                                    controller: genreControllers[i],
+                                  ),
+                                ),
+                                IconButton(
+                                  onPressed: () => removeGenreField(i),
+                                  icon: const Icon(Icons.remove_circle,
+                                      color: Colors.indigo),
+                                ),
+                              ],
+                            ),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: TextButton.icon(
+                              onPressed: addGenreField,
+                              icon: const Icon(Icons.add),
+                              label: const Text('Add Genre'),
+                            ),
+                          ),
+                        ],
+                      ),
                       ColorPicker(
                         pickersEnabled: const {
                           ColorPickerType.wheel: true,
