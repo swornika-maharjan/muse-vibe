@@ -1,3 +1,4 @@
+import math
 import uuid
 from fastapi import APIRouter, Depends, File, Form, UploadFile
 from sqlalchemy.orm import Session
@@ -11,7 +12,7 @@ from models.genre import Genre
 from models.association import song_genre_association, user_genre_association
 from sqlalchemy.orm import joinedload
 from pydantic_schemas.favourite_song import FavoriteSong
-from math import log
+
 
 
 
@@ -44,6 +45,7 @@ def upload_song(song: UploadFile = File(...),
         hex_code=hex_code,
         song_url=song_res['url'],
         thumbnail_url = thumbnail_res['url'],
+        genres= genres
     )
 
     genre_objs = []
@@ -242,7 +244,7 @@ def recommendation_songs(db: Session = Depends(get_db),
     # Check if collaborative recommendations are less than 2
     if len(recommended_song_ids) < 2:
         # Fetch additional recommendations from content-based filtering
-        content_based = content_based_recommendations(user_id, db)
+        content_based = content_based_recommendations_with_tfidf(user_id, db)
         
         # Convert content-based results to a set of song IDs
         content_based_song_ids = {song['id'] for song in content_based}
@@ -269,7 +271,7 @@ def recommendation_songs(db: Session = Depends(get_db),
 
     return recommended_songs_dict
 
-def content_based_recommendations(user_id: str, db: Session):
+def content_based_recommendations_with_tfidf(user_id: str, db: Session):
     # Fetch the genres the user likes
     liked_genres = (
         db.query(Genre.id)
@@ -290,7 +292,7 @@ def content_based_recommendations(user_id: str, db: Session):
     )
     liked_song_ids = {fav.song_id for fav in user_liked_songs}
 
-    # Fetch songs that match the liked genres and are not already liked
+    # Fetch all songs in liked genres that are not already liked
     songs_in_liked_genres = (
         db.query(Song)
         .join(song_genre_association, song_genre_association.c.song_id == Song.id)
@@ -299,58 +301,79 @@ def content_based_recommendations(user_id: str, db: Session):
         .all()
     )
 
-    # If no songs are found, return an empty list
     if not songs_in_liked_genres:
         return []
 
-    # Map songs to their genres
-    songs_with_genres = (
+    # Fetch all songs and their genres
+    all_songs_with_genres = (
         db.query(Song.id, song_genre_association.c.genre_id)
         .join(song_genre_association, song_genre_association.c.song_id == Song.id)
-        .filter(Song.id.in_([song.id for song in songs_in_liked_genres]))
         .all()
     )
 
+    # Map songs to their genres
     song_to_genres = {}
-    for song_id, genre_id in songs_with_genres:
+    for song_id, genre_id in all_songs_with_genres:
         if song_id not in song_to_genres:
-            song_to_genres[song_id] = set()
-        song_to_genres[song_id].add(genre_id)
+            song_to_genres[song_id] = []
+        song_to_genres[song_id].append(genre_id)
 
-    # Compute TF (genre frequency per song)
-    genre_to_song_count = {}
-    for genres in song_to_genres.values():
+    # Calculate TF for each song's genres
+    tf_scores = {}
+    for song_id, genres in song_to_genres.items():
+        tf_scores[song_id] = {}
+        total_genres = len(genres)
         for genre in genres:
-            genre_to_song_count[genre] = genre_to_song_count.get(genre, 0) + 1
+            tf_scores[song_id][genre] = genres.count(genre) / total_genres
 
-    # Compute IDF (inverse user frequency for each genre)
-    user_genre_counts = (
-        db.query(user_genre_association.c.genre_id)
-        .distinct()
-        .count()
-    )
-    genre_to_idf = {
-        genre: log(user_genre_counts / (1 + genre_to_song_count[genre]))
+    # Calculate IDF for each genre
+    genre_to_song_count = {}
+    total_songs = len(song_to_genres)
+    for genres in song_to_genres.values():
+        for genre in set(genres):
+            if genre not in genre_to_song_count:
+                genre_to_song_count[genre] = 0
+            genre_to_song_count[genre] += 1
+
+    idf_scores = {
+        genre: math.log(total_songs / genre_to_song_count[genre])
         for genre in genre_to_song_count
     }
 
-    # Compute scores for each song based on liked genres
-    song_scores = {}
-    for song_id, genres in song_to_genres.items():
-        score = sum(genre_to_idf.get(genre, 0) for genre in genres if genre in liked_genre_ids)
-        song_scores[song_id] = score
+    # Compute TF-IDF for each genre in each song
+    tf_idf_scores = {}
+    for song_id, genre_scores in tf_scores.items():
+        tf_idf_scores[song_id] = {}
+        for genre, tf in genre_scores.items():
+            idf = idf_scores.get(genre, 0)
+            tf_idf_scores[song_id][genre] = tf * idf
 
-    # Sort songs by their scores
-    sorted_song_ids = sorted(song_scores, key=song_scores.get, reverse=True)
+    # Match user's liked genres and calculate relevance
+    song_relevance = {}
+    for song in songs_in_liked_genres:
+        song_id = song.id
+        genres = song_to_genres.get(song_id, [])
+        relevance = sum(
+            tf_idf_scores.get(song_id, {}).get(genre, 0)
+            for genre in genres
+            if genre in liked_genre_ids
+        )
+        if relevance > 0.5:  # Only consider songs with relevance > 0.5
+            song_relevance[song_id] = relevance
 
-    # Fetch song details for the recommendations
+    # Sort songs by relevance
+    sorted_song_ids = [
+        song_id for song_id, _ in sorted(song_relevance.items(), key=lambda x: x[1], reverse=True)
+    ]
+
+    # Fetch and return sorted songs
     recommended_songs = (
         db.query(Song)
         .filter(Song.id.in_(sorted_song_ids))
         .all()
     )
 
-    # Format the response as a list of dictionaries
+    # Format the response
     recommended_songs_dict = [
         {
             'id': song.id,
@@ -364,53 +387,5 @@ def content_based_recommendations(user_id: str, db: Session):
     ]
 
     return recommended_songs_dict
-
-
-
-# def content_based_recommendations(user_id: str, db: Session):
-#     # Fetch the genres the user likes
-#     liked_genres = (
-#         db.query(Genre.id)
-#         .join(user_genre_association, user_genre_association.c.genre_id == Genre.id)
-#         .filter(user_genre_association.c.user_id == user_id)
-#         .all()
-#     )
-#     liked_genre_ids = [genre.id for genre in liked_genres]
-
-#     if not liked_genre_ids:
-#         return []  # If no genres are associated, return an empty list
-
-#     # Fetch songs in the liked genres but exclude already liked songs
-#     user_liked_songs = (
-#         db.query(Favorite.song_id)
-#         .filter(Favorite.user_id == user_id)
-#         .all()
-#     )
-#     liked_song_ids = [fav.song_id for fav in user_liked_songs]
-
-#     recommended_songs = (
-#         db.query(Song)
-#         .join(song_genre_association, song_genre_association.c.song_id == Song.id)
-#         .filter(song_genre_association.c.genre_id.in_(liked_genre_ids))
-#         .filter(Song.id.notin_(liked_song_ids))
-#         .all()
-#     )
-
-#     # Format the response as a list of dictionaries
-#     recommended_songs_dict = [
-#         {
-#             'id': song.id,
-#             'song_url': song.song_url,
-#             'thumbnail_url': song.thumbnail_url,
-#             'artist': song.artist,
-#             'song_name': song.song_name,
-#             'hex_code': song.hex_code
-#         }
-#         for song in recommended_songs
-#     ]
-
-#     return recommended_songs_dict
-
-
 
 
