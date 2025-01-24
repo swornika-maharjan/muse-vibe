@@ -21,9 +21,12 @@ class HomeRepository {
     required String songName,
     required String artist,
     required String hexCode,
+    required List<String> genres,
     required String token,
   }) async {
     try {
+      print(genres);
+      print(jsonEncode(genres));
       final request = http.MultipartRequest(
         'POST',
         Uri.parse('${ServerConstant.serverURL}/song/upload'),
@@ -49,6 +52,8 @@ class HomeRepository {
             'x-auth-token': token,
           },
         );
+
+      request.fields['genres'] = jsonEncode(genres);
 
       final res = await request.send();
 

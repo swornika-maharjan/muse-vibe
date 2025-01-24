@@ -80,6 +80,7 @@ class HomeViewModel extends _$HomeViewModel {
       artist: artist,
       hexCode: rgbToHex(selectedColor),
       token: ref.read(currentUserNotifierProvider)!.token,
+      genres: genres!,
     );
 
     final val = switch (res) {

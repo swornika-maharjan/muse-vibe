@@ -1,4 +1,5 @@
 import math
+import json
 import uuid
 from fastapi import APIRouter, Depends, File, Form, UploadFile
 from sqlalchemy.orm import Session
@@ -31,9 +32,23 @@ def upload_song(song: UploadFile = File(...),
                 artist: str = Form(...), 
                 song_name: str = Form(...), 
                 hex_code: str = Form(...),
-                genres: list[str] = Form(...),
+                genres: str = Form(...),
                 db: Session = Depends(get_db),
                 auth_dict = Depends(auth_middleware)):
+    # print('aalu')
+    # print('aalu2')
+    # print('aalu3')
+    # print('aalu4')
+    # print('aalu6')
+    # print('aalu7')
+    # print(genres)
+    # print('aalu5')
+    genres_list = json.loads(genres)
+    # print(genres_list)
+    # print('aalu7')
+    # return
+    
+
     song_id = str(uuid.uuid4())
     song_res = cloudinary.uploader.upload(song.file, resource_type='auto', folder=f'songs/{song_id}')
     thumbnail_res = cloudinary.uploader.upload(thumbnail.file, resource_type='image', folder=f'songs/{song_id}')
@@ -45,11 +60,10 @@ def upload_song(song: UploadFile = File(...),
         hex_code=hex_code,
         song_url=song_res['url'],
         thumbnail_url = thumbnail_res['url'],
-        genres= genres
     )
 
     genre_objs = []
-    for genre_name in genres:
+    for genre_name in genres_list:
         # Check if the genre already exists in the database
         genre = db.query(Genre).filter(Genre.name == genre_name).first()
         if not genre:

@@ -47,6 +47,7 @@ class UserPreferencesPageState extends State<UserPreferencesPage> {
         print('Parsed data: $data');
 
         if (!data['has_genres']) {
+          if (!mounted) return;
           setState(() {
             genres = (data['available_genres'] as List)
                 .map((genre) => {
@@ -59,6 +60,7 @@ class UserPreferencesPageState extends State<UserPreferencesPage> {
             isLoading = false;
           });
         } else {
+          if (!mounted) return;
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(
@@ -72,6 +74,7 @@ class UserPreferencesPageState extends State<UserPreferencesPage> {
             'Failed to fetch genres. Status: ${response.statusCode}');
       }
     } catch (e) {
+      if (!mounted) return;
       print('Error: $e');
       setState(() {
         isLoading = false;
