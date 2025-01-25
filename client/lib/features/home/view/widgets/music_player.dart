@@ -16,6 +16,16 @@ class MusicPlayer extends ConsumerWidget {
     final currentSong = ref.watch(currentSongNotifierProvider);
     final songNotifier = ref.read(currentSongNotifierProvider.notifier);
 
+    if (currentSong == null) {
+      // Close the player page when currentSong is null
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (Navigator.canPop(context)) {
+          Navigator.pop(context);
+        }
+      });
+      return const SizedBox.shrink(); // Return an empty widget
+    }
+
     final userFavorites = ref
         .watch(currentUserNotifierProvider.select((data) => data!.favorites));
     final allSongs = ref.watch(getAllSongsProvider);
@@ -23,7 +33,7 @@ class MusicPlayer extends ConsumerWidget {
     return allSongs.when(
       data: (songs) {
         final currentIndex =
-            songs.indexWhere((song) => song.id == currentSong!.id);
+            songs.indexWhere((song) => song.id == currentSong.id);
 
         ref.read(currentSongNotifierProvider.notifier).updatePlaylist(songs);
 
@@ -48,7 +58,7 @@ class MusicPlayer extends ConsumerWidget {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  hexToColor(currentSong!.hex_code),
+                  hexToColor(currentSong.hex_code),
                   const Color(0xff121212),
                 ],
               ),
@@ -172,14 +182,14 @@ class MusicPlayer extends ConsumerWidget {
                         ),
                         const SizedBox(height: 15),
                         StreamBuilder(
-                          stream: songNotifier.audioPlayer!.positionStream,
+                          stream: songNotifier.audioPlayer.positionStream,
                           builder: (context, snapshot) {
                             if (snapshot.connectionState ==
                                 ConnectionState.waiting) {
                               return const SizedBox();
                             }
                             final position = snapshot.data;
-                            final duration = songNotifier.audioPlayer!.duration;
+                            final duration = songNotifier.audioPlayer.duration;
                             double sliderValue = 0.0;
                             if (position != null && duration != null) {
                               sliderValue = position.inMilliseconds /
@@ -193,6 +203,7 @@ class MusicPlayer extends ConsumerWidget {
                                   data: SliderTheme.of(context).copyWith(
                                     activeTrackColor: Pallete.whiteColor,
                                     inactiveTrackColor:
+                                        // ignore: deprecated_member_use
                                         Pallete.whiteColor.withOpacity(0.117),
                                     thumbColor: Pallete.whiteColor,
                                     trackHeight: 4,

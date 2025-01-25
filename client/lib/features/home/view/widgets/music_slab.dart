@@ -136,13 +136,13 @@ class MusicSlab extends ConsumerWidget {
             ),
           ),
           StreamBuilder(
-              stream: songNotifier.audioPlayer?.positionStream,
+              stream: songNotifier.audioPlayer.positionStream,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const SizedBox();
                 }
                 final position = snapshot.data;
-                final duration = songNotifier.audioPlayer!.duration;
+                final duration = songNotifier.audioPlayer.duration;
                 double sliderValue = 0.0;
                 if (position != null && duration != null) {
                   sliderValue =

@@ -38,6 +38,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       (_, next) {
         next?.when(
           data: (data) {
+            showSnackBar(context, 'Successfully logged in.');
             Navigator.pushAndRemoveUntil(
               context,
               MaterialPageRoute(

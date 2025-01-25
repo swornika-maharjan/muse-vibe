@@ -64,6 +64,7 @@ class AuthViewModel extends _$AuthViewModel {
         ),
       Right(value: final r) => _loginSuccess(r),
     };
+
     print(val);
   }
 

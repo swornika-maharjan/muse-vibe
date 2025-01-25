@@ -182,43 +182,6 @@ class UserPreferencesPageState extends State<UserPreferencesPage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          // Skip Button
-                          Expanded(
-                            child: InkWell(
-                              onTap: () {
-                                Navigator.pushAndRemoveUntil(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => HomePage(),
-                                  ),
-                                  (_) => false,
-                                );
-                              },
-                              child: Container(
-                                height: 50,
-                                alignment: Alignment.center,
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      Pallete.gradient1,
-                                      Pallete.gradient2,
-                                    ],
-                                  ),
-                                  borderRadius: BorderRadius.circular(8.0),
-                                ),
-                                child: const Text(
-                                  'Skip',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 16.0),
-                          // Submit Button
                           Expanded(
                             child: InkWell(
                               onTap: selectedGenres.isEmpty

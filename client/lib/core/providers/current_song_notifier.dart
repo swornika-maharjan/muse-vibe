@@ -1,3 +1,4 @@
+import 'package:client/core/providers/audio_manager.dart';
 import 'package:client/features/home/models/song_model.dart';
 import 'package:client/features/home/repositories/home_local_repository.dart';
 import 'package:just_audio_background/just_audio_background.dart';
@@ -8,7 +9,8 @@ part 'current_song_notifier.g.dart';
 @riverpod
 class CurrentSongNotifier extends _$CurrentSongNotifier {
   late HomeLocalRepository _homeLocalRepository;
-  AudioPlayer? audioPlayer;
+  AudioPlayer audioPlayer = AudioManager.instance;
+
   bool isPlaying = false;
   List<SongModel> _currentPlaylist = [];
 
@@ -18,13 +20,17 @@ class CurrentSongNotifier extends _$CurrentSongNotifier {
     return null;
   }
 
+  void dispose() {
+    audioPlayer.dispose(); // Dispose the AudioPlayer instance
+  }
+
   void updatePlaylist(List<SongModel> playlist) {
     _currentPlaylist = playlist;
   }
 
   void updateSong(SongModel song) async {
-    await audioPlayer?.stop();
-    audioPlayer = AudioPlayer();
+    await audioPlayer.stop();
+    audioPlayer = AudioManager.instance;
 
     final audioSource = AudioSource.uri(
       Uri.parse(song.song_url),
@@ -35,16 +41,16 @@ class CurrentSongNotifier extends _$CurrentSongNotifier {
         artUri: Uri.parse(song.thumbnail_url),
       ),
     );
-    await audioPlayer!.setAudioSource(audioSource);
+    await audioPlayer.setAudioSource(audioSource);
 
-    audioPlayer!.playerStateStream.listen((state) {
+    audioPlayer.playerStateStream.listen((state) {
       if (state.processingState == ProcessingState.completed) {
         _playNextSongAutomatically();
       }
     });
 
     _homeLocalRepository.uploadLocalSong(song);
-    audioPlayer!.play();
+    audioPlayer.play();
     isPlaying = true;
     state = song;
   }
@@ -59,25 +65,25 @@ class CurrentSongNotifier extends _$CurrentSongNotifier {
 
   void playPause() {
     if (isPlaying) {
-      audioPlayer?.pause();
+      audioPlayer.pause();
     } else {
-      audioPlayer?.play();
+      audioPlayer.play();
     }
     isPlaying = !isPlaying;
     state = state?.copyWith(hex_code: state?.hex_code);
   }
 
   void seek(double val) {
-    audioPlayer!.seek(
+    audioPlayer.seek(
       Duration(
-        milliseconds: (val * audioPlayer!.duration!.inMilliseconds).toInt(),
+        milliseconds: (val * audioPlayer.duration!.inMilliseconds).toInt(),
       ),
     );
   }
 
   void playNext(SongModel nextSong) async {
-    await audioPlayer?.stop();
-    audioPlayer = AudioPlayer();
+    await audioPlayer.stop();
+    audioPlayer = AudioManager.instance;
 
     final audioSource = AudioSource.uri(
       Uri.parse(nextSong.song_url),
@@ -89,16 +95,16 @@ class CurrentSongNotifier extends _$CurrentSongNotifier {
       ),
     );
 
-    await audioPlayer!.setAudioSource(audioSource);
-    audioPlayer!.play();
+    await audioPlayer.setAudioSource(audioSource);
+    audioPlayer.play();
     isPlaying = true;
     state = nextSong;
     _homeLocalRepository.uploadLocalSong(nextSong);
   }
 
   void playPrevious(SongModel previousSong) async {
-    await audioPlayer?.stop();
-    audioPlayer = AudioPlayer();
+    await audioPlayer.stop();
+    audioPlayer = AudioManager.instance;
 
     final audioSource = AudioSource.uri(
       Uri.parse(previousSong.song_url),
@@ -110,15 +116,15 @@ class CurrentSongNotifier extends _$CurrentSongNotifier {
       ),
     );
 
-    await audioPlayer!.setAudioSource(audioSource);
-    audioPlayer!.play();
+    await audioPlayer.setAudioSource(audioSource);
+    audioPlayer.play();
     isPlaying = true;
     state = previousSong;
     _homeLocalRepository.uploadLocalSong(previousSong);
   }
 
   Future<void> stop() async {
-    await audioPlayer?.stop(); // Stops the music playback
+    await audioPlayer.stop(); // Stops the music playback
     isPlaying = false;
   }
 

@@ -1,0 +1,4 @@
+#Sat Jan 25 10:27:24 NPT 2025
+base.0=C\:\\Users\\DELL\\Desktop\\a\\client\\build\\app\\intermediates\\dex\\release\\minifyReleaseWithR8\\classes.dex
+path.0=classes.dex
+renamed.0=classes.dex
